@@ -1,0 +1,11 @@
+[repository]
+name = "hyprlut"
+authors = ["MCPO-Spartan-117", "gnusenpai"]
+
+[hyprlut]
+description = "An Plugin to load LUTs for shaders"
+authors = ["MCPO-Spartan-117", "gnusenpai"]
+output = "hyprlut.so"
+build = [
+    "make"
+]
