@@ -14,6 +14,28 @@ typedef void (*origApplyScreenShader)(void*, const std::string&);
 
 SP<CTexture> m_lutTexture;
 
+void notify(eLogLevel level, const std::string& text) {
+    Debug::log(level, "[hyprlut] " + text);
+
+    static auto* const PNOTIFY = (Hyprlang::INT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:notify")->getDataStaticPtr();
+
+    if (!**PNOTIFY)
+        return;
+
+    CHyprColor color;
+    switch (level) {
+        case INFO:
+            color = CHyprColor{0.0, 1.0, 0.0, 1.0};
+            break;
+        case ERR:
+            color = CHyprColor{1.0, 0.0, 0.0, 1.0};
+            break;
+        default:
+            color = CHyprColor{0.0, 1.0, 0.0, 1.0};
+    }
+    HyprlandAPI::addNotification(PHANDLE, "[hyprlut] " + text, color, 5000);
+}
+
 // Adapted from CHyprOpenGLImpl::loadAsset
 SP<CTexture> loadAsset(const std::string& path) {
     std::error_code ec;
@@ -76,15 +98,13 @@ void createLUTTexture() {
     glActiveTexture(GL_TEXTURE2);
     m_lutTexture = loadAsset(texPath);
     if (m_lutTexture == g_pHyprOpenGL->m_missingAssetTexture || m_lutTexture->m_size.x == 0.0) {
-        HyprlandAPI::addNotification(PHANDLE, "[hyprlut] missing LUT!", CHyprColor{1.0,0.0,0.0,1.0}, 5000);
+        notify(ERR, "missing LUT!");
     } else {
         std::string const x = std::to_string(static_cast<int>(m_lutTexture->m_size.x));
         std::string const y = std::to_string(static_cast<int>(m_lutTexture->m_size.y));
-        HyprlandAPI::addNotification(PHANDLE,
-                                     "[hyprlut] loaded LUT:\n"
-                                     "path: " + texPath + "\n"
-                                     "size: " + x + "x" + y,
-                                     CHyprColor{0.0,1.0,0.0,1.0}, 5000);
+        notify(INFO, "loaded LUT:\n"
+               "path: " + texPath + "\n"
+               "size: " + x + "x" + y);
     }
 
     glActiveTexture(GL_TEXTURE0);
@@ -140,6 +160,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pApplyScreenShaderHook->hook();
 
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyprlut:texture", Hyprlang::STRING{""});
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyprlut:notify", Hyprlang::INT{1});
 
     HyprlandAPI::addDispatcherV2(PHANDLE, "plugin:hyprlut:settexture", ::setTexture);
 
