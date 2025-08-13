@@ -1,7 +1,14 @@
+INCLUDES ?= `pkg-config --cflags pixman-1 libdrm hyprland pangocairo libinput libudev wayland-server xkbcommon`
+CXXFLAGS += -std=c++2b -Wall -shared -fPIC $(INCLUDES)
+
 all:
-	$(CXX) -Wall -O3 -flto=auto -shared -fPIC main.cpp -o hyprlut.so `pkg-config --cflags pixman-1 libdrm hyprland pangocairo libinput libudev wayland-server xkbcommon` -std=c++2b
+	$(CXX) -O3 -flto=auto $(CXXFLAGS) main.cpp -o hyprlut.so
 	strip hyprlut.so
+
 debug:
-	$(CXX) -Wall -Og -shared -fPIC main.cpp -o hyprlut.so -g `pkg-config --cflags pixman-1 libdrm hyprland pangocairo libinput libudev wayland-server xkbcommon` -std=c++2b
+	$(CXX) -Og -g $(CXXFLAGS) main.cpp -o hyprlut.so
+
 clean:
-	rm ./hyprlut.so
+	rm -f ./hyprlut.so
+
+.PHONY: all debug clean
