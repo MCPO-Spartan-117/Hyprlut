@@ -89,7 +89,7 @@ SP<CTexture> loadAsset(const std::string& path) {
 }
 
 void createLUTTexture() {
-    static auto* const PLUT = (Hyprlang::STRING* const)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr();
+    static auto* const PLUT = (Hyprlang::STRING const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr();
 
     if (!**PLUT)
         return;
