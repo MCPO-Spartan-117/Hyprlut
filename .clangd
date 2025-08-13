@@ -1,5 +1,8 @@
 CompileFlags:
   Add:
+    - "--gcc-toolchain=/usr"
+    - "-Weverything"
+    - "-Wno-c++98-compat"
     - "-I/usr/include/libdrm"
     - "-I/usr/include/hyprland/protocols"
     - "-I/usr/include/hyprland"
