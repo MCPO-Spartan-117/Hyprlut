@@ -8,13 +8,10 @@ all:
 debug:
 	$(CXX) -Og -g $(CXXFLAGS) main.cpp -o hyprlut.so
 
-load:
-	hyprctl plugin load "$(PWD)/hyprlut.so"
-
-unload:
-	hyprctl plugin unload "$(PWD)/hyprlut.so"
+unload load:
+	hyprctl plugin $@ "$(CURDIR)/hyprlut.so"
 
 clean:
-	rm -f ./hyprlut.so
+	rm -f hyprlut.so
 
 .PHONY: all debug load unload clean
