@@ -57,7 +57,7 @@ inline SP<CTexture> loadAsset(const std::string& path) {
     }
 
     const auto CAIROFORMAT = cairo_image_surface_get_format(CAIROSURFACE);
-    auto       tex         = makeShared<CTexture>();
+    auto       &&tex       = makeShared<CTexture>();
 
     tex->allocate();
     tex->m_size = {cairo_image_surface_get_width(CAIROSURFACE), cairo_image_surface_get_height(CAIROSURFACE)};
