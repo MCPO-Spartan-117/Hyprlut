@@ -14,7 +14,7 @@ typedef void (*origApplyScreenShader)(void*, const std::string&);
 
 SP<CTexture> m_lutTexture;
 
-void notify(eLogLevel level, const std::string& text) {
+static void notify(eLogLevel level, const std::string& text) {
     Debug::log(level, "[hyprlut] " + text);
 
     static auto* const PNOTIFY = (Hyprlang::INT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:notify")->getDataStaticPtr();
@@ -37,7 +37,7 @@ void notify(eLogLevel level, const std::string& text) {
 }
 
 // Adapted from CHyprOpenGLImpl::loadAsset
-SP<CTexture> loadAsset(const std::string& path) {
+inline SP<CTexture> loadAsset(const std::string& path) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
         Debug::log(LOG, "[hyprlut] loadAsset: looking at {} unsuccessful: ec {}", path, ec.message());
@@ -88,8 +88,8 @@ SP<CTexture> loadAsset(const std::string& path) {
     return tex;
 }
 
-void createLUTTexture() {
     static auto* const PLUT = (Hyprlang::STRING const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr();
+inline void createLUTTexture(void) {
 
     if (!**PLUT)
         return;
@@ -110,7 +110,7 @@ void createLUTTexture() {
     glActiveTexture(GL_TEXTURE0);
 }
 
-void hkApplyScreenShader(void* thisptr, const std::string& path) {
+static void hkApplyScreenShader(void* thisptr, const std::string& path) {
     {
         Debug::log(INFO, "[hyprlut] Running hkApplyScreenShader");
 
