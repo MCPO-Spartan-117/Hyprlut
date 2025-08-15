@@ -17,7 +17,7 @@ SP<CTexture> m_lutTexture;
 static void notify(eLogLevel level, const std::string& text) {
     Debug::log(level, "[hyprlut] " + text);
 
-    static auto* const PNOTIFY = (Hyprlang::INT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:notify")->getDataStaticPtr();
+    static const auto PNOTIFY = reinterpret_cast<Hyprlang::INT* const*>(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:notify")->getDataStaticPtr());
 
     if (!**PNOTIFY)
         return;
@@ -95,8 +95,8 @@ inline SP<CTexture> loadAsset(const std::string& path) {
     return tex;
 }
 
-    static auto* const PLUT = (Hyprlang::STRING const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr();
 inline void createLUTTexture(void) {
+    static const auto PLUT = reinterpret_cast<Hyprlang::STRING const*>(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr());
 
     if (!**PLUT)
         return;
@@ -132,7 +132,7 @@ static void hkApplyScreenShader(void* thisptr, const std::string& path) {
 #pragma clang diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wconditionally-supported"
 #pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
-    (*(origApplyScreenShader)g_pApplyScreenShaderHook->m_original)(thisptr, path);
+    (*reinterpret_cast<origApplyScreenShader>(g_pApplyScreenShaderHook->m_original))(thisptr, path);
 #pragma GCC diagnostic pop
 
 #pragma GCC diagnostic push
@@ -186,7 +186,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static const auto METHODS = HyprlandAPI::findFunctionsByName(PHANDLE, "applyScreenShader");
     if (METHODS.size() < 1)
         throw std::runtime_error("[hyprlut] applyScreenShader not found!");
-    g_pApplyScreenShaderHook = HyprlandAPI::createFunctionHook(PHANDLE, METHODS[0].address, (void*)&hkApplyScreenShader);
+    g_pApplyScreenShaderHook = HyprlandAPI::createFunctionHook(PHANDLE, METHODS[0].address, reinterpret_cast<void*>(&hkApplyScreenShader));
     g_pApplyScreenShaderHook->hook();
 #pragma GCC diagnostic pop
 
