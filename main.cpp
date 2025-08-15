@@ -17,6 +17,7 @@ typedef void (*origApplyScreenShader)(void*, const std::string&);
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wexit-time-destructors"
 static SP<CTexture> m_lutTexture;
+static Hyprlang::STRING loadedLUT;
 #pragma GCC diagnostic pop
 
 static void notify(eLogLevel level, const std::string& text) {
@@ -103,7 +104,7 @@ inline SP<CTexture> loadAsset(const std::string& path) {
 inline void createLUTTexture(void) {
     static const auto PLUT = reinterpret_cast<Hyprlang::STRING const*>(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr());
 
-    if (!**PLUT)
+    if (!**PLUT || loadedLUT == *PLUT)
         return;
 
 #pragma GCC diagnostic push
@@ -122,6 +123,7 @@ inline void createLUTTexture(void) {
     }
 #pragma GCC diagnostic pop
 
+    loadedLUT = *PLUT;
     glActiveTexture(GL_TEXTURE0);
 }
 
