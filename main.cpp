@@ -22,6 +22,8 @@ static void notify(eLogLevel level, const std::string& text) {
     if (!**PNOTIFY)
         return;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-enum"
     CHyprColor color;
     switch (level) {
         case INFO:
@@ -34,6 +36,7 @@ static void notify(eLogLevel level, const std::string& text) {
             color = CHyprColor{0.0, 1.0, 0.0, 1.0};
     }
     HyprlandAPI::addNotification(PHANDLE, "[hyprlut] " + text, color, 5000);
+#pragma GCC diagnostic pop
 }
 
 // Adapted from CHyprOpenGLImpl::loadAsset
@@ -81,7 +84,11 @@ inline SP<CTexture> loadAsset(const std::string& path) {
         tex->setTexParameter(GL_TEXTURE_SWIZZLE_B, GL_RED);
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
+#pragma GCC diagnostic ignored "-Wsign-conversion"
     glTexImage2D(GL_TEXTURE_2D, 0, glIFormat, tex->m_size.x, tex->m_size.y, 0, glFormat, glType, DATA);
+#pragma GCC diagnostic pop
 
     cairo_surface_destroy(CAIROSURFACE);
 
@@ -94,6 +101,8 @@ inline void createLUTTexture(void) {
     if (!**PLUT)
         return;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
     std::string texPath = absolutePath(*PLUT, g_pConfigManager->getMainConfigPath());
     glActiveTexture(GL_TEXTURE2);
     m_lutTexture = loadAsset(texPath);
@@ -106,6 +115,7 @@ inline void createLUTTexture(void) {
                "path: " + texPath + "\n"
                "size: " + x + "x" + y);
     }
+#pragma GCC diagnostic pop
 
     glActiveTexture(GL_TEXTURE0);
 }
@@ -117,8 +127,17 @@ static void hkApplyScreenShader(void* thisptr, const std::string& path) {
         createLUTTexture();
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wconditionally-supported"
+#pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
     (*(origApplyScreenShader)g_pApplyScreenShaderHook->m_original)(thisptr, path);
+#pragma GCC diagnostic pop
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
     {
         uint8_t lut = glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut");
         uint8_t lutSize = glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size");
@@ -130,6 +149,7 @@ static void hkApplyScreenShader(void* thisptr, const std::string& path) {
 
         Debug::log(INFO, "[hyprlut] Ran hkApplyScreenShader");
     }
+#pragma GCC diagnostic pop
 }
 
 static SDispatchResult setTexture(std::string in) {
@@ -147,17 +167,28 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     // ALWAYS add this to your plugins. It will prevent random crashes coming from
     // mismatched header versions.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-conversion"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
     if (HASH != GIT_COMMIT_HASH) {
         HyprlandAPI::addNotification(PHANDLE, "[hyprlut] Mismatched headers! Can't proceed.",
                                      CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
         throw std::runtime_error("[hyprlut] Version mismatch");
     }
+#pragma GCC diagnostic pop
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wconditionally-supported"
+#pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
     static const auto METHODS = HyprlandAPI::findFunctionsByName(PHANDLE, "applyScreenShader");
     if (METHODS.size() < 1)
         throw std::runtime_error("[hyprlut] applyScreenShader not found!");
     g_pApplyScreenShaderHook = HyprlandAPI::createFunctionHook(PHANDLE, METHODS[0].address, (void*)&hkApplyScreenShader);
     g_pApplyScreenShaderHook->hook();
+#pragma GCC diagnostic pop
 
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyprlut:texture", Hyprlang::STRING{""});
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyprlut:notify", Hyprlang::INT{1});
