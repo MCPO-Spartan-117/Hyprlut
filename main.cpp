@@ -12,7 +12,12 @@ inline HANDLE PHANDLE = nullptr;
 inline CFunctionHook* g_pApplyScreenShaderHook = nullptr;
 typedef void (*origApplyScreenShader)(void*, const std::string&);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
 static SP<CTexture> m_lutTexture;
+#pragma GCC diagnostic pop
 
 static void notify(eLogLevel level, const std::string& text) {
     Debug::log(level, "[hyprlut] " + text);
@@ -183,6 +188,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 #pragma clang diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wconditionally-supported"
 #pragma clang diagnostic ignored "-Wc++98-compat-pedantic"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
     static const auto METHODS = HyprlandAPI::findFunctionsByName(PHANDLE, "applyScreenShader");
     if (METHODS.size() < 1)
         throw std::runtime_error("[hyprlut] applyScreenShader not found!");
