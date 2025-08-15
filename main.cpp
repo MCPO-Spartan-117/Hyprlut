@@ -12,7 +12,7 @@ inline HANDLE PHANDLE = nullptr;
 inline CFunctionHook* g_pApplyScreenShaderHook = nullptr;
 typedef void (*origApplyScreenShader)(void*, const std::string&);
 
-SP<CTexture> m_lutTexture;
+static SP<CTexture> m_lutTexture;
 
 static void notify(eLogLevel level, const std::string& text) {
     Debug::log(level, "[hyprlut] " + text);
