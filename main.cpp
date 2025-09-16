@@ -1,3 +1,4 @@
+#include <array>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include <filesystem>
@@ -11,6 +12,8 @@ inline HANDLE PHANDLE = nullptr;
 
 inline CFunctionHook* g_pApplyScreenShaderHook = nullptr;
 typedef void (*origApplyScreenShader)(void*, const std::string&);
+
+using std::array;
 
 // Hyprlang types
 using HInt = Hyprlang::INT;
@@ -30,8 +33,11 @@ constexpr auto *H_iHC = HyprlandAPI::invokeHyprctlCommand;
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wexit-time-destructors"
-static SP<CTexture> m_lutTexture;
-static HString loadedLUT;
+
+static array<SP<CTexture>, 16> m_lutTexture;
+static array<HString, 16> loadedLUT;
+static array<GLint, 16> lut;
+static array<GLint, 16> lut_size;
 #pragma GCC diagnostic pop
 
 static void notify(eLogLevel level, const std::string& text) {
@@ -115,37 +121,37 @@ inline SP<CTexture> loadAsset(const std::string& path) {
     return tex;
 }
 
-inline void createLUTTexture(void) {
-    static const auto PLUT = reinterpret_cast<HString const*>(H_gCV(PHANDLE, "plugin:hyprlut:texture")->getDataStaticPtr());
+inline void createLUTTexture(uint loopvar) {
+    std::string loopvarstring = std::to_string(loopvar);
+    auto PLUT = reinterpret_cast<HString const*>(H_gCV(PHANDLE, "plugin:hyprlut:texture" + loopvarstring)->getDataStaticPtr());
+    auto &parray = loadedLUT[loopvar];
 
-    if (!**PLUT || loadedLUT == *PLUT)
+    if (!**PLUT || parray == *PLUT)
         return;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
     std::string texPath = absolutePath(*PLUT, g_pConfigManager->getMainConfigPath());
-    glActiveTexture(GL_TEXTURE2);
-    m_lutTexture = loadAsset(texPath);
-    if (m_lutTexture == g_pHyprOpenGL->m_missingAssetTexture || m_lutTexture->m_size.x == 0.0) {
+    glActiveTexture(GL_TEXTURE16 + loopvar);
+    m_lutTexture[loopvar] = loadAsset(texPath);
+    if (m_lutTexture[loopvar] == g_pHyprOpenGL->m_missingAssetTexture || m_lutTexture[loopvar]->m_size.x == 0.0) {
         notify(ERR, "missing LUT!");
     } else {
-        std::string const x = std::to_string(static_cast<int>(m_lutTexture->m_size.x));
-        std::string const y = std::to_string(static_cast<int>(m_lutTexture->m_size.y));
-        notify(INFO, "loaded LUT:\n"
+        std::string const x = std::to_string(static_cast<int>(m_lutTexture[loopvar]->m_size.x));
+        std::string const y = std::to_string(static_cast<int>(m_lutTexture[loopvar]->m_size.y));
+        notify(INFO, "loaded LUT " + loopvarstring + ":\n"
                "path: " + texPath + "\n"
                "size: " + x + "x" + y);
     }
 #pragma GCC diagnostic pop
 
-    loadedLUT = *PLUT;
+    parray = *PLUT;
     glActiveTexture(GL_TEXTURE0);
 }
 
 static void hkApplyScreenShader(void* thisptr, const std::string& path) {
     {
         Debug::log(INFO, "[hyprlut] Running hkApplyScreenShader");
-
-        createLUTTexture();
     }
 
 #pragma GCC diagnostic push
@@ -160,12 +166,54 @@ static void hkApplyScreenShader(void* thisptr, const std::string& path) {
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wfloat-conversion"
     {
-        uint8_t lut = glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut");
-        uint8_t lutSize = glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size");
-        g_pHyprOpenGL->useProgram(g_pHyprOpenGL->m_finalScreenShader.program);
-        if (m_lutTexture) {
-            glUniform1i(lut, 2);
-            glUniform2f(lutSize, m_lutTexture->m_size.x, m_lutTexture->m_size.y);
+        lut = {{
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut0"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut1"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut2"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut3"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut4"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut5"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut6"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut7"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut8"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut9"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut10"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut11"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut12"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut13"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut14"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut15"),
+        }};
+
+        lut_size = {{
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size0"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size1"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size2"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size3"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size4"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size5"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size6"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size7"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size8"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size9"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size10"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size11"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size12"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size13"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size14"),
+            glGetUniformLocation(g_pHyprOpenGL->m_finalScreenShader.program, "lut_size15")
+        }};
+
+        for(uint loopvar = 0; loopvar < m_lutTexture.max_size(); loopvar++) {
+            std::string loopvarstring = std::to_string(loopvar);
+            createLUTTexture(loopvar);
+
+            g_pHyprOpenGL->useProgram(g_pHyprOpenGL->m_finalScreenShader.program);
+            if (m_lutTexture[loopvar]) {
+                notify(INFO, std::to_string(lut[loopvar]) + " " + loopvarstring);
+                glUniform1i(lut[loopvar], 16 + loopvar);
+                glUniform2f(lut_size[loopvar], m_lutTexture[loopvar]->m_size.x, m_lutTexture[loopvar]->m_size.y);
+            }
         }
 
         Debug::log(INFO, "[hyprlut] Ran hkApplyScreenShader");
@@ -173,8 +221,8 @@ static void hkApplyScreenShader(void* thisptr, const std::string& path) {
 #pragma GCC diagnostic pop
 }
 
-static SDispatchResult setTexture(std::string in) {
-    H_iHC("keyword plugin:hyprlut:texture", in, "");
+static SDispatchResult reloadTextures(std::string in) {
+    loadedLUT.fill(nullptr);
 
     g_pHyprOpenGL->m_reloadScreenShader = true;
 
@@ -211,11 +259,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_pApplyScreenShaderHook = H_cFH(PHANDLE, METHODS[0].address, reinterpret_cast<void*>(&hkApplyScreenShader));
     g_pApplyScreenShaderHook->hook();
 #pragma GCC diagnostic pop
-
-    H_aCV(PHANDLE, "plugin:hyprlut:texture", HString{""});
+    for(uint loopvar = 0; loopvar < m_lutTexture.max_size(); loopvar++) {
+        H_aCV(PHANDLE, "plugin:hyprlut:texture" + std::to_string(loopvar), HString{""});
+    }
     H_aCV(PHANDLE, "plugin:hyprlut:notify", HInt{1});
 
-    H_aDv2(PHANDLE, "plugin:hyprlut:settexture", ::setTexture);
+    H_aDv2(PHANDLE, "plugin:hyprlut:reload", ::reloadTextures);
     return {
         "hyprlut",
         "A Plugin to load LUTs for shaders",
