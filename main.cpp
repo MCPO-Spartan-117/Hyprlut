@@ -1,44 +1,5 @@
-#include <array>
-#include <hyprland/src/plugins/PluginAPI.hpp>
-
-#include <filesystem>
-#include <hyprland/src/config/ConfigManager.hpp>
-
-#define private public
-#include <hyprland/src/render/OpenGL.hpp>
-#undef private
-
-inline HANDLE PHANDLE = nullptr;
-
-inline CFunctionHook* g_pApplyScreenShaderHook = nullptr;
-typedef void (*origApplyScreenShader)(void*, const std::string&);
-
-using std::array;
-
-// Hyprlang types
-using HInt = Hyprlang::INT;
-using HString = Hyprlang::STRING;
-
-// HyprlandAPI functions
-constexpr auto *H_fFBN = HyprlandAPI::findFunctionsByName;
-constexpr auto *H_cFH = HyprlandAPI::createFunctionHook;
-constexpr auto *H_aCV = HyprlandAPI::addConfigValue;
-constexpr auto *H_gCV = HyprlandAPI::getConfigValue;
-constexpr auto *H_rCD = HyprlandAPI::registerCallbackDynamic;
-constexpr auto *H_aDv2 = HyprlandAPI::addDispatcherV2;
-constexpr auto *H_aNv1 = HyprlandAPI::addNotification;
-constexpr auto *H_iHC = HyprlandAPI::invokeHyprctlCommand;
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#pragma clang diagnostic ignored "-Wglobal-constructors"
-#pragma clang diagnostic ignored "-Wexit-time-destructors"
-
-static array<SP<CTexture>, 16> m_lutTexture;
-static array<HString, 16> loadedLUT;
-static array<GLint, 16> lut;
-static array<GLint, 16> lut_size;
-#pragma GCC diagnostic pop
+#include "main.hpp"
+#include "hypreco/hyprland.cpp"
 
 static void notify(eLogLevel level, const std::string& text) {
     Debug::log(level, "[hyprlut] " + text);
@@ -63,63 +24,6 @@ static void notify(eLogLevel level, const std::string& text) {
     }
     H_aNv1(PHANDLE, "[hyprlut] " + text, color, 5000);
 #pragma GCC diagnostic pop
-}
-
-// Adapted from CHyprOpenGLImpl::loadAsset
-[[__gnu__::__always_inline__]]
-inline SP<CTexture> loadAsset(const std::string& path) {
-    std::error_code ec;
-    if (!std::filesystem::exists(path, ec)) {
-        Debug::log(LOG, "[hyprlut] loadAsset: looking at {} unsuccessful: ec {}", path, ec.message());
-        return g_pHyprOpenGL->m_missingAssetTexture;
-    }
-
-    if (path.empty()) {
-        Debug::log(ERR, "[hyprlut] loadAsset: looking for {} failed (no provider found)", path);
-        return g_pHyprOpenGL->m_missingAssetTexture;
-    }
-
-    const auto CAIROSURFACE = cairo_image_surface_create_from_png(path.c_str());
-
-    if (!CAIROSURFACE) {
-        Debug::log(ERR, "[hyprlut] loadAsset: failed to load {} (corrupt / inaccessible / not png)", path);
-        return g_pHyprOpenGL->m_missingAssetTexture;
-    }
-
-    const auto CAIROFORMAT = cairo_image_surface_get_format(CAIROSURFACE);
-    auto       &&tex       = makeShared<CTexture>();
-
-    tex->allocate();
-    tex->m_size = {cairo_image_surface_get_width(CAIROSURFACE), cairo_image_surface_get_height(CAIROSURFACE)};
-
-    const GLint glIFormat = CAIROFORMAT == CAIRO_FORMAT_RGB96F ? GL_RGB32F : GL_RGBA;
-    const GLint glFormat  = CAIROFORMAT == CAIRO_FORMAT_RGB96F ? GL_RGB : GL_RGBA;
-    const GLint glType    = CAIROFORMAT == CAIRO_FORMAT_RGB96F ? GL_FLOAT : GL_UNSIGNED_BYTE;
-
-    const auto  DATA = cairo_image_surface_get_data(CAIROSURFACE);
-    tex->bind();
-    tex->setTexParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    tex->setTexParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    const float border[] = { 1.0, 0.0, 1.0, 1.0 };
-    tex->setTexParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    tex->setTexParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
-
-    if (CAIROFORMAT != CAIRO_FORMAT_RGB96F) {
-        tex->setTexParameter(GL_TEXTURE_SWIZZLE_R, GL_BLUE);
-        tex->setTexParameter(GL_TEXTURE_SWIZZLE_B, GL_RED);
-    }
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-conversion"
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-    glTexImage2D(GL_TEXTURE_2D, 0, glIFormat, tex->m_size.x, tex->m_size.y, 0, glFormat, glType, DATA);
-#pragma GCC diagnostic pop
-
-    cairo_surface_destroy(CAIROSURFACE);
-
-    return tex;
 }
 
 [[__gnu__::__always_inline__]]
