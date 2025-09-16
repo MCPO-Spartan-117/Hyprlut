@@ -144,6 +144,8 @@ out vec4 fragColor;
 	#else
 		#define CUTOFFFLOAT 0.12109375
 	#endif
+	// range before and after color.r to check for other colors, if 4 then if color.r is 12 then check g and b for bits 8-16, 8-bit
+	#define CUTOFFRANGE 4
 #endif
 
 #ifdef USELUT
@@ -234,11 +236,14 @@ void main() {
 	#endif
 
 	#ifdef TVCUTOFF
-		//if ( color.r == color.g && color.r == color.b && color.r > CUTOFFFLOAT ) {
-		if ( color.g > CUTOFFFLOAT && color.b > CUTOFFFLOAT && color.r > CUTOFFFLOAT ) {
-			color.r = 0.0;
-			color.g = 0.0;
-			color.b = 0.0;
+		if (color.r < CUTOFFFLOAT) {
+			const float rangecheck = CUTOFFRANGE.01 / 256.0;
+			float colg = abs(color.g - color.r);
+			float colb = abs(color.b - color.r);
+			if (colg < rangecheck && colb < rangecheck) {
+				fragColor = vec4(0.0, 0.0, 0.0, color.a);
+				return;
+			}
 		}
 	#endif
 
