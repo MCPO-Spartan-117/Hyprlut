@@ -66,6 +66,7 @@ static void notify(eLogLevel level, const std::string& text) {
 }
 
 // Adapted from CHyprOpenGLImpl::loadAsset
+[[__gnu__::__always_inline__]]
 inline SP<CTexture> loadAsset(const std::string& path) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
@@ -121,6 +122,7 @@ inline SP<CTexture> loadAsset(const std::string& path) {
     return tex;
 }
 
+[[__gnu__::__always_inline__]]
 inline void createLUTTexture(uint loopvar) {
     std::string loopvarstring = std::to_string(loopvar);
     auto PLUT = reinterpret_cast<HString const*>(H_gCV(PHANDLE, "plugin:hyprlut:texture" + loopvarstring)->getDataStaticPtr());
