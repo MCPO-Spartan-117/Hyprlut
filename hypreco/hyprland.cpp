@@ -1,5 +1,9 @@
 #include "../main.hpp"
 
+//BSD 3-Clause License
+//
+//Copyright (c) 2022-2025, vaxerski
+//All rights reserved.
 // Adapted from CHyprOpenGLImpl::loadAsset
 [[__gnu__::__always_inline__]]
 inline SP<CTexture> loadAsset(const std::string& path) {
