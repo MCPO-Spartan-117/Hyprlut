@@ -16,7 +16,7 @@ DATA=$(
         sed '/BEGIN_DATA$/Q' |
         tac |
         cut -d' ' -f2- |
-        sed -e 's/ /,/g' -e 's/^/    vec3(/' -e 's/$/),/'
+        sed -e 's/ /,/g' -e 's/^/\tvec3(/' -e 's/$/),/'
 )
 
 SIZE=$(echo "${DATA}" | wc -l)

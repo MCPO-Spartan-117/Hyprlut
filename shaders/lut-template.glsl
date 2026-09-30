@@ -1,40 +1,15 @@
 #version 320 es
-/*
- * Example 1D and 3D LUT shader
- *
- * 1D LUT
- * To use:
- * 0. This assumes the calibrations curves are in a argyllcms format and they are extractable from a vcgt tag in a ICC
- * 1. Obtain calibration curves(.cal files) from a existing ICC work directory or dump it using 'iccvcgt -x $ICC' from argyllcms
- * 2. Use the '1dlut.sh $CAL $TEMPLATE' script to automatically fill the '1DLUT_REPLACE_*' placeholders
- * 3. Copy this shader to `~/.config/hypr/lut.glsl`
- * 4. Uncomment #define _1DLUT and enable it with the command:
- *	`hyprctl keyword decoration:screen_shader "lut.glsl"`
- *
- * 3D LUT
- * adapted from https://lettier.github.io/3d-game-shaders-for-beginners/lookup-table.html
- *
- * To use:
- * 0. Requires hyprland plugin from https://github.com/MCPO-Spartan-117/Hyprlut for PNG LUT support
- * 1. Find or generate a strip-style 3D LUT, if using a color correction LUT do not add the vcgt tag if using a 1D LUT in this shader
- *	(https://github.com/gnusenpai/lut-generator was used to test)
- * 2. Copy it to `~/.config/hypr/lut.png` and load it with the command:
- *	`hyprctl keyword plugin:hyprlut:texture0 "lut.png"`
- * 3. Copy this shader to `~/.config/hypr/lut.glsl`
- * 4. Uncomment #define _3DLUT and enable it with the command:
- *	`hyprctl keyword decoration:screen_shader "lut.glsl"`
-*/
-
 precision highp float;
 
 /* Enable 1DLUT code */
-//#define _1DLUT
+#define _1DLUT
+//#define _1DLUTPNG
 /* Enable 3DLUT code */
 //#define _3DLUT
 /* Cutoff bits before transformation */
 //#define TVCUTOFF
 /* No interpolation for 1DLUTs */
-//#define _1DNOINTERPOLATION
+//#define NOINTERPOLATION
 
 in vec2 v_texcoord;
 uniform vec2 screen_size;
@@ -48,6 +23,10 @@ out vec4 fragColor;
 		#define PRIMARY1DCOLOR color
 	#else
 		#define PRIMARY1DCOLOR _3dlutcache
+	#endif
+	#ifdef _1DLUTPNG
+		uniform sampler2D lut1;
+		uniform vec2 lut_size1;
 	#endif
 	#define USELUT
 #endif
@@ -127,7 +106,7 @@ out vec4 fragColor;
 
 				#define SECONDARYFUNCT _1dlutfunct(SECONDARY1DCOLOR)
 			#elif defined _3DSEL
-				#define SECONDARYFUNCT mixLUTs(sampleLUTf(SECONDARYCOLOR), sampleLUTc(SECONDARYCOLOR), SECONDARYCOLOR)
+				#define SECONDARYFUNCT mixLUTs2(sampleLUTf2(SECONDARYCOLOR), SECONDARYCOLOR)
 			#else
 				#define SECONDARYFUNCT SECONDARYCOLOR
 			#endif
@@ -137,52 +116,74 @@ out vec4 fragColor;
 
 #ifdef TVCUTOFF
 	/* Custom cutoff point */
-	//#define CUSTOMCUTOFF
+	#define CUSTOMCUTOFF
 	#ifndef CUSTOMCUTOFF
 		/* Cutoff <17(256) bits before transformation */
 		#define CUTOFFFLOAT 0.06640625
 	#else
 		#define CUTOFFFLOAT 0.12109375
+		//#define CUTOFFFLOAT 0.87890625
 	#endif
-	// range before and after color.r to check for other colors, if 4 then if color.r is 12 then check g and b for bits 8-16, 8-bit
+	// 8-bit range
 	#define CUTOFFRANGE 4
 #endif
 
 #ifdef USELUT
 	#ifdef O3DLUT
-		#define PRIMARYFUNCT mixLUTs(sampleLUTf(PRIMARY3DCOLOR), sampleLUTc(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
+		#define PRIMARYFUNCT mixLUTs2(sampleLUTf2(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
 	#else
 		#define PRIMARYFUNCT _1dlutfunct(PRIMARY1DCOLOR);
 	#endif
 #endif
 
-#ifdef _1DLUT
+#if defined _1DLUT && !defined _1DLUTPNG
 	const vec3 LUT[1DLUT_REPLACE_NUMBER] = vec3[](
 	1DLUT_REPLACE_LIST
 	);
+#endif
 
+#ifdef _1DLUT
 	vec4 _1dlutfunct(vec4 color) {
-	float LUT_max = float(LUT.length()-1);
-	vec3 LUT_color = color.rgb * LUT_max;
+		#ifndef _1DLUTPNG
+			float LUT_max = float(LUT.length()-1);
+		#else
+			float LUT_max = lut_size1.x - 1.0;
+		#endif
+		vec3 LUT_color = color.rgb * LUT_max;
 
-	int rIndexLo = int(LUT_color.r);
-	int gIndexLo = int(LUT_color.g);
-	int bIndexLo = int(LUT_color.b);
-	#ifndef _1DNOINTERPOLATION
-		int rIndexHi = int(ceil(LUT_color.r));
-		int gIndexHi = int(ceil(LUT_color.g));
-		int bIndexHi = int(ceil(LUT_color.b));
-	#endif
+		int rIndexLo = int(LUT_color.r);
+		int gIndexLo = int(LUT_color.g);
+		int bIndexLo = int(LUT_color.b);
+		#ifndef NOINTERPOLATION
+			int rIndexHi = int(ceil(LUT_color.r));
+			int gIndexHi = int(ceil(LUT_color.g));
+			int bIndexHi = int(ceil(LUT_color.b));
+		#endif
+
+		#ifdef _1DLUTPNG
+			float texredl = texture(lut1, vec2(float(rIndexLo) / lut_size1.x, 0.5)).r;
+			float texgreenl = texture(lut1, vec2(float(gIndexLo) / lut_size1.x, 0.5)).g;
+			float texbluel = texture(lut1, vec2(float(bIndexLo) / lut_size1.x, 0.5)).b;
+			float texredh = texture(lut1, vec2(float(rIndexHi) / lut_size1.x, 0.5)).r;
+			float texgreenh = texture(lut1, vec2(float(gIndexHi) / lut_size1.x, 0.5)).g;
+			float texblueh = texture(lut1, vec2(float(bIndexHi) / lut_size1.x, 0.5)).b;
+		#endif
 
 		return vec4(
-		#ifndef _1DNOINTERPOLATION
+		#ifndef _1DLUTPNG
+			#ifndef NOINTERPOLATION
 				mix(LUT[rIndexLo].r, LUT[rIndexHi].r, fract(LUT_color.r)),
 				mix(LUT[gIndexLo].g, LUT[gIndexHi].g, fract(LUT_color.g)),
 				mix(LUT[bIndexLo].b, LUT[bIndexHi].b, fract(LUT_color.b)),
-		#else
+			#else
 				LUT[rIndexLo].r,
 				LUT[gIndexLo].g,
 				LUT[bIndexLo].b,
+			#endif
+		#else
+			mix(texredl, texredh, fract(LUT_color.r)),
+			mix(texgreenl, texgreenh, fract(LUT_color.g)),
+			mix(texbluel, texblueh, fract(LUT_color.b)),
 		#endif
 				color.a
 		);
@@ -222,6 +223,36 @@ out vec4 fragColor;
 			color.a
 		);
 	}
+
+	vec4[2] sampleLUTf2(vec4 color) {
+		vec3 temp = color.rgb * (lut_size0.y-1.0);
+		float u = (floor(temp.b) / (lut_size0.y-1.0)) * ((lut_size0.x-1.0) - (lut_size0.y-1.0));
+			  u += (floor(temp.r) / (lut_size0.y-1.0)) * (lut_size0.y-1.0);
+			  u += 0.5;
+			  u /= lut_size0.x;
+		float v = (floor(temp.g) / (lut_size0.y-1.0)) * (lut_size0.y-1.0);
+			  v += 0.5;
+			  v /= lut_size0.y;
+
+		float u2 = (ceil(temp.b) / (lut_size0.y-1.0)) * ((lut_size0.x-1.0) - (lut_size0.y-1.0));
+			  u2 += (ceil(temp.r) / (lut_size0.y-1.0)) * (lut_size0.y-1.0);
+			  u2 += 0.5;
+			  u2 /= lut_size0.x;
+		float v2 = (ceil(temp.g) / (lut_size0.y-1.0)) * (lut_size0.y-1.0);
+			  v2 += 0.5;
+			  v2 /= lut_size0.y;
+
+		return vec4[2](texture(lut0, vec2(u, v)), texture(lut0, vec2(u2, v2)));
+	}
+
+	vec4 mixLUTs2(vec4 lutarray[2], vec4 color) {
+		return vec4(
+			mix(lutarray[0].r, lutarray[1].r, fract(color.r * (lut_size0.y-1.0))),
+			mix(lutarray[0].g, lutarray[1].g, fract(color.g * (lut_size0.y-1.0))),
+			mix(lutarray[0].b, lutarray[1].b, fract(color.b * (lut_size0.y-1.0))),
+			color.a
+		);
+	}
 #endif
 
 
@@ -249,9 +280,9 @@ void main() {
 
 	#ifdef TEST
 		#ifdef _13DLUT
-			vec4 PRIMARY1DCOLOR = mixLUTs(sampleLUTf(PRIMARY3DCOLOR), sampleLUTc(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
+			vec4 PRIMARY1DCOLOR = mixLUTs2(sampleLUTf2(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
 			#ifdef COL3D
-				vec4 SECONDARY1DCOLOR = mixLUTs(sampleLUTf(SECONDARYCOLOR), sampleLUTc(SECONDARYCOLOR), SECONDARYCOLOR);
+				vec4 SECONDARY1DCOLOR = mixLUTs2(sampleLUTf2(SECONDARYCOLOR), SECONDARYCOLOR);
 			#endif
 		#endif
 
@@ -285,7 +316,8 @@ void main() {
 		}
 	#elif defined USELUT
 		#ifdef _13DLUT
-			vec4 PRIMARY1DCOLOR = mixLUTs(sampleLUTf(PRIMARY3DCOLOR), sampleLUTc(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
+//			vec4 PRIMARY1DCOLOR = mixLUTs(sampleLUTf(PRIMARY3DCOLOR), sampleLUTc(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
+			vec4 PRIMARY1DCOLOR = mixLUTs2(sampleLUTf2(PRIMARY3DCOLOR), PRIMARY3DCOLOR);
 		#endif
 		fragColor = PRIMARYFUNCT;
 	#else
